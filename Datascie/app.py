@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, redirect
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
@@ -52,6 +52,60 @@ def evaluate_models(X_train, X_test, y_train, y_test):
 
     return results
 
+# Add route for additional information
+@app.route('/additional_info', methods=['POST'])
+def additional_info():
+    # Process the form data for additional information
+    chol = float(request.form['chol'])
+    fbs = float(request.form['fbs'])
+    restecg = float(request.form['restecg'])
+    thalac = float(request.form['thalac'])
+    thal = float(request.form['thal'])
+
+    # Further processing or display as needed
+
+    return "Additional information processed successfully!"
+
+# Modify the existing predict route
+@app.route('/predict', methods=['POST'])
+def predict():
+    # Process the form data
+    age = float(request.form['age'])
+    gender = request.form['gender']
+    trestbps = float(request.form['trestbps'])
+    cp = float(request.form['cp'])
+    heart_disease = float(request.form['heart_disease'])  # Change here
+    user_input = preprocess_input(age, gender, trestbps, cp, heart_disease)
+
+    # Debugging statements
+    print(f"Input values: {user_input}")
+    
+    # Train-test split for model evaluation
+    X = df.drop('heart_disease', axis=1)
+    y = df['heart_disease']
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+    # Evaluate models
+    model_results = evaluate_models(X_train, X_test, y_train, y_test)
+
+    # Debugging statements
+    print(f"Probabilities: {model_results['Logistic Regression']['probabilities']}")
+
+    # Get the initial probability
+    initial_probability = model_results['Logistic Regression']['probabilities'][0]
+
+    # Debugging statements
+    print(f"Initial Probability: {initial_probability}")
+
+    # Determine which result template to render based on probability
+    if initial_probability > 0.35:
+        user_input['probability'] = initial_probability * 100  # Convert to percentage
+        return render_template('result_high_cvd.html', model_results=model_results, user_input=user_input)
+    else:
+        user_input['probability'] = initial_probability * 100  # Convert to percentage
+        return render_template('result_low_cvd.html', model_results=model_results, user_input=user_input)
+
+# Default route for the initial form
 @app.route('/', methods=['GET', 'POST'])
 def index():
     if request.method == 'POST':
@@ -60,8 +114,8 @@ def index():
         gender = request.form['gender']
         trestbps = float(request.form['trestbps'])
         cp = float(request.form['cp'])
-        heart_disease = None  # Update this with the actual form input for heart_disease
-        user_input = preprocess_input(age, gender, trestbps, cp, heart_disease)
+        has_history = float(request.form['has_history'])
+        user_input = preprocess_input(age, gender, trestbps, cp, has_history)
 
         # Train-test split for model evaluation
         X = df.drop('heart_disease', axis=1)
@@ -71,11 +125,17 @@ def index():
         # Evaluate models
         model_results = evaluate_models(X_train, X_test, y_train, y_test)
 
-        # Your existing logic for further processing and displaying results
+        # Get the initial probability
+        initial_probability = model_results['Logistic Regression']['probabilities'][0]
 
-        return render_template('result.html', model_results=model_results, user_input=user_input)
+        # Determine which result template to render based on probability
+        if initial_probability > 0.35:
+            return render_template('result_high_cvd.html', model_results=model_results, user_input=user_input)
+        else:
+            return render_template('result_low_cvd.html', model_results=model_results, user_input=user_input)
 
     return render_template('website.html')
 
 if __name__ == '__main__':
     app.run(debug=True)
+    

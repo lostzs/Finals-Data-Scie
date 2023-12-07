@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Low Chance of CVD</title>
+    <!-- Your CSS styles for low chance result go here -->
+</head>
+<body>
+    <h1>Low Chance of Cardiovascular Disease (CVD)</h1>
+    <p>Your probability of having CVD is low. Further information for specific symptoms is recommended.</p>
+    <!-- Display additional information fields here -->
+    <form action="/additional_info" method="post">
+        <label for="chol">Cholesterol:</label>
+        <input type="text" id="chol" name="chol" required>
+        <br>
+        <label for="fbs">Fasting Blood Sugar:</label>
+        <input type="text" id="fbs" name="fbs" required>
+        <br>
+        <label for="restecg">Resting Electrocardiographic Results:</label>
+        <input type="text" id="restecg" name="restecg" required>
+        <br>
+        <input type="submit" value="Submit">
+    </form>
+    <p>Probability: {{ '%.2f' % (user_input['probability'] * 100) }}%</p>
+</body>
+</html>

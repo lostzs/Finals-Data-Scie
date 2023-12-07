@@ -108,7 +108,7 @@ initial_probability = calculate_probability(user_values, filtered_df, variables)
 print(f"Initial Probability of having CVD: {initial_probability:.2%}")
 
 # Recommend additional information based on probability
-if initial_probability <= 0.35:
+if initial_probability > 0.35:
     additional_variables = ['chol', 'fbs', 'restecg', 'thalach', 'thal']
     print("Recommend getting additional information:")
 else:
@@ -164,10 +164,13 @@ for model_name, result in model_results.items():
     print(f"\n{model_name} Accuracy: {result['accuracy']:.2%}")
     print(f"{model_name} Confusion Matrix:\n{result['confusion_matrix']}\n")
 
-print("Recommendations:")
+# Check if probability increased by 10% or more
 if updated_probability - initial_probability >= 0.10:
     print("Recommend admission for further specialist checking. Mark as HIGH CHANCE OF CVD.")
+    # Additional actions for HIGH CHANCE OF CVD, such as marking the user or further recommendations
 elif initial_probability - updated_probability >= 0.15:
     print("Recommend admission to the ER for further investigation of symptoms. Mark as low probability for CVD.")
+    # Additional actions for low probability for CVD, such as marking the user or further recommendations
 else:
     print("No specific recommendations at this time.")
+    # Additional actions for no specific recommendations, if needed

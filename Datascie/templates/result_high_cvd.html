@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>High Chance of CVD</title>
+    <!-- Add your styles here -->
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <h1>High Chance of Cardiovascular Disease (CVD)</h1>
+    <p>Your probability of having CVD is high: {{ '%.2f' % (user_input['probability'] * 100) }}%</p>
+    <!-- Display additional information fields here -->
+    <form action="/additional_info" method="post">
+        <label for="chol">Cholesterol:</label>
+        <input type="text" id="chol" name="chol" required>
+        <br>
+        <label for="fbs">Fasting Blood Sugar:</label>
+        <input type="text" id="fbs" name="fbs" required>
+        <br>
+        <label for="restecg">Resting Electrocardiographic Results:</label>
+        <input type="text" id="restecg" name="restecg" required>
+        <br>
+        <label for="thalac">Maximum Heart Rate Achieved (thalac):</label>
+        <input type="text" id="thalac" name="thalac" required>
+        <br>
+        <label for="thal">Thal:</label>
+        <input type="text" id="thal" name="thal" required>
+        <br>
+        <input type="submit" value="Submit">
+    </form>
+    <p>Probability: {{ '%.2f' % (user_input['probability'] * 100) }}%</p>
+</body>
+</html>

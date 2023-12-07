@@ -10,7 +10,7 @@
             background-color: #f4f4f4;
             margin: 0;
             padding: 0;
-            display:block;
+            display: block;
             justify-content: center;
             align-items: center;
             height: 100vh;
@@ -62,7 +62,7 @@
 </head>
 <body>
     <h1>Cardiovascular Disease Prediction</h1>
-    <form method="POST" action="/">
+    <form method="POST" action="/predict">
         <label for="age">Age:</label>
         <input type="number" name="age" required>
 
@@ -78,7 +78,10 @@
         <label for="heart_disease">History of Heart Disease (If yes, 1 if no then 0):</label>
         <input type="number" name="heart_disease" required>
 
-        <button type="submit">Submit</button>
+        <button type="submit">Predict</button>
     </form>
+    {% if user_input %}
+    <p>Probability: {{ '%.2f' % (user_input['probability'] * 100) }}%</p>
+    {% endif %}
 </body>
 </html>
