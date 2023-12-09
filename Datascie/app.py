@@ -1,7 +1,7 @@
 # app.py
 import numpy as np
 import pandas as pd
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, redirect
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
@@ -14,6 +14,12 @@ app = Flask(__name__)
 
 # Load the dataset
 df = pd.read_csv('heart_attack.csv')
+
+# Initialize variables
+variables = ['age', 'gender', 'trestbps', 'cp', 'heart_disease']
+additional_variables = []
+initial_probability = 0.0
+model_results = {}
 
 # Function to calculate the probability of having CVD
 def calculate_probability(user_values, filtered_df, variables):
@@ -53,7 +59,7 @@ def evaluate_models(X_train, X_test, y_train, y_test):
             y_pred = model.predict(X_test)
             probabilities = None
 
-        joblib.dump(model, f'Linear_Regression_model.joblib')
+        joblib.dump(model, f'{name}_model.joblib')
 
         accuracy = accuracy_score(y_test, y_pred)
         cm = confusion_matrix(y_test, y_pred)
@@ -75,29 +81,31 @@ def evaluate_models(X_train, X_test, y_train, y_test):
 
     return results
 
-# Display variable options and prompt the user for input
-variables = ['age', 'gender', 'trestbps', 'cp', 'heart_disease']
-user_values = []
-
 # Web App Routes
 @app.route('/')
 def index():
     return render_template('website.html', variables=variables)
 
-@app.route('/predict', methods=['POST'])
-def predict():
+@app.route('/predict_initial', methods=['POST'])
+def predict_initial():
+    global initial_probability
+    global additional_variables
+    global model_results
+
     user_values = []
 
     for var in variables:
         if var != 'gender':
             user_val = request.form.get(var, '')
             if user_val == '':
-                user_values.append(np.nan)  # Set to NaN for numerical variables
+                user_values.append(np.nan)  
             else:
                 user_values.append(float(user_val))
         else:
             user_val = request.form.get(var, '').upper()
-            user_values.append(user_val)
+            # Convert variations of gender to binary (1 for Female, 0 for Male)
+            gender_binary = 1 if user_val in ['F', 'FEMALE'] else 0
+            user_values.append(gender_binary)
 
     filtered_df = df[variables]
 
@@ -113,13 +121,44 @@ def predict():
     initial_probability = calculate_probability(user_values, filtered_df, variables)
 
     # Recommend additional information based on probability
-    additional_info_recommendation = None
+    additional_variables = []  # Initialize here
     if initial_probability > 0.35:
-        additional_info_recommendation = ['chol', 'fbs', 'restecg', 'thalach', 'thal']
+        additional_variables = ['chol', 'fbs', 'restecg', 'thalach', 'thal']
     else:
-        additional_info_recommendation = ['chol', 'fbs', 'restecg']
+        additional_variables = ['chol', 'fbs', 'restecg']
 
-    return render_template('result.html', user_values=user_values, additional_info_recommendation=additional_info_recommendation, model_results=model_results)
+    return render_template('website.html', user_input={'initial_probability': initial_probability}, additional_variables=additional_variables, model_results=model_results)
+
+
+@app.route('/predict_additional', methods=['POST'])
+def predict_additional():
+    global initial_probability
+    global additional_variables
+    global model_results
+
+    user_values = []
+
+    for var in variables + additional_variables:
+        user_val = request.form.get(var, '')
+        if user_val == '':
+            user_values.append(np.nan)  # Set to NaN for numerical variables
+        else:
+            user_values.append(float(user_val))
+
+    filtered_df = df[variables + additional_variables]
+
+    # Recalculate the probability with additional information
+    updated_probability = calculate_probability(user_values, filtered_df, variables + additional_variables)
+
+    # Check if probability increased by 10% or more
+    if updated_probability - initial_probability >= 0.10:
+        result_message = "HIGH CHANCE OF CVD"
+    elif initial_probability - updated_probability >= 0.15:
+        result_message = "LOW CHANCE OF CVD"
+    else:
+        result_message = "NO SPECIFIC RECOMMENDATIONS"
+
+    return render_template('result.html', result_message=result_message, model_results=model_results)
 
 if __name__ == '__main__':
     app.run(debug=True)
