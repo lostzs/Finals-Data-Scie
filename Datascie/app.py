@@ -1,25 +1,15 @@
-# app.py
-import numpy as np
+import streamlit as st
 import pandas as pd
-from flask import Flask, render_template, request, redirect
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC
-from sklearn.metrics import accuracy_score, confusion_matrix, precision_recall_fscore_support, mean_squared_error
-import joblib
-
-app = Flask(__name__)
+from sklearn.metrics import accuracy_score, confusion_matrix
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 # Load the dataset
 df = pd.read_csv('heart_attack.csv')
-
-# Initialize variables
-variables = ['age', 'gender', 'trestbps', 'cp', 'heart_disease']
-additional_variables = []
-initial_probability = 0.0
-model_results = {}
 
 # Function to calculate the probability of having CVD
 def calculate_probability(user_values, filtered_df, variables):
@@ -28,18 +18,19 @@ def calculate_probability(user_values, filtered_df, variables):
     for var, user_val in zip(variables, user_values):
         if var == 'gender':
             threshold_val = filtered_df[var].mode().iloc[0]
-            probability += int(str(user_val) == str(threshold_val))
+            probability += int(user_val == threshold_val)
         else:
             threshold_val = filtered_df[var].mean() + filtered_df[var].std()
-            probability += int(float(user_val) > threshold_val) if user_val != '' else 0
+            probability += int(user_val > threshold_val)
 
     probability /= len(variables)
+
     return probability
 
 # Function to train and evaluate models
 def evaluate_models(X_train, X_test, y_train, y_test):
     models = {
-        'Logistic Regression': LogisticRegression(max_iter=1000, solver='liblinear'),
+        'Logistic Regression': LogisticRegression(),
         'KNN': KNeighborsClassifier(),
         'SVM': SVC(probability=True)
     }
@@ -47,118 +38,122 @@ def evaluate_models(X_train, X_test, y_train, y_test):
     results = {}
 
     for name, model in models.items():
-        if name == 'Logistic Regression':
-            scaler = StandardScaler()
-            X_train_scaled = scaler.fit_transform(X_train)
-            X_test_scaled = scaler.transform(X_test)
-            model.fit(X_train_scaled, y_train)
-            y_pred = model.predict(X_test_scaled)
-            probabilities = model.predict_proba(X_test_scaled)[:, 1]
-        else:
-            model.fit(X_train, y_train)
-            y_pred = model.predict(X_test)
-            probabilities = None
-
-        joblib.dump(model, f'{name}_model.joblib')
-
+        model.fit(X_train, y_train)
+        y_pred = model.predict(X_test)
         accuracy = accuracy_score(y_test, y_pred)
         cm = confusion_matrix(y_test, y_pred)
-        precision, recall, f1, _ = precision_recall_fscore_support(y_test, y_pred, average='binary')
-        mse = mean_squared_error(y_test, y_pred)
-        rmse = mean_squared_error(y_test, y_pred, squared=False)
-
-        results[name] = {
-            'accuracy': accuracy,
-            'confusion_matrix': cm,
-            'precision': precision,
-            'recall': recall,
-            'f1_score': f1,
-            'mse': mse,
-            'rmse': rmse,
-            'probabilities': probabilities,
-            'model': model
-        }
+        results[name] = {'accuracy': accuracy, 'confusion_matrix': cm}
 
     return results
 
-# Web App Routes
-@app.route('/')
-def index():
-    return render_template('website.html', variables=variables)
+# Streamlit app
+st.title('Heart Disease Prediction App')
 
-@app.route('/predict_initial', methods=['POST'])
-def predict_initial():
-    global initial_probability
-    global additional_variables
-    global model_results
+# Step 1: Basic Information
+if 'user_values_basic' not in st.session_state:
+    st.session_state.user_values_basic = {}
+with st.form('basic_info_form'):
+    st.header('Step 1: Enter Basic Information')
+    variables_basic = ['age', 'gender', 'trestbps', 'cp', 'heart_disease']
 
-    user_values = []
+    for var in variables_basic:
+        if var == 'gender':
+            st.session_state.user_values_basic[var] = st.text_input(f"Enter gender (M/F): ").upper()
+        else:
+            st.session_state.user_values_basic[var] = st.number_input(f"Enter value for {var}: ")
 
-    for var in variables:
-        if var != 'gender':
-            user_val = request.form.get(var, '')
-            if user_val == '':
-                user_values.append(np.nan)  
+    if st.form_submit_button('Proceed to Step 2'):
+        # Filter the dataset based on selected variables
+        filtered_df_basic = df[variables_basic]
+
+        # Train-test split for model evaluation
+        X_basic = df.drop('heart_disease', axis=1)
+        y_basic = df['heart_disease']
+        X_train_basic, X_test_basic, y_train_basic, y_test_basic = train_test_split(X_basic, y_basic, test_size=0.2, random_state=42)
+
+        # Evaluate models
+        model_results_basic = evaluate_models(X_train_basic, X_test_basic, y_train_basic, y_test_basic)
+
+        # Calculate the probability of having CVD
+        initial_probability_basic = calculate_probability(list(st.session_state.user_values_basic.values()), filtered_df_basic, variables_basic)
+
+        st.write(f"Initial Probability of having CVD: {initial_probability_basic:.2%}")
+
+        # Step 2: Recommend Additional Information
+        st.header('Step 2: Recommend Additional Information')
+        if initial_probability_basic >= 0.35:
+            additional_variables = ['chol', 'fbs', 'restecg', 'thalach', 'thal']
+            st.write("Recommend getting additional information:")
+        else:
+            additional_variables = ['chol', 'fbs', 'restecg']
+            st.write("Recommend getting the following information:")
+
+        st.session_state.user_values_additional = {}  # Initialize user_values_additional
+
+        for var in additional_variables:
+            if var == 'gender':
+                st.session_state.user_values_additional[var] = st.text_input(f"Enter gender (M/F): ").upper()
             else:
-                user_values.append(float(user_val))
-        else:
-            user_val = request.form.get(var, '').upper()
-            # Convert variations of gender to binary (1 for Female, 0 for Male)
-            gender_binary = 1 if user_val in ['F', 'FEMALE'] else 0
-            user_values.append(gender_binary)
+                st.session_state.user_values_additional[var] = st.number_input(f"Enter value for {var}: ")
 
-    filtered_df = df[variables]
-
-    # Train-test split for model evaluation
-    X = df.drop('heart_disease', axis=1)
-    y = df['heart_disease']
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
-    # Evaluate models
-    model_results = evaluate_models(X_train, X_test, y_train, y_test)
-
-    # Calculate the probability of having CVD
-    initial_probability = calculate_probability(user_values, filtered_df, variables)
-
-    # Recommend additional information based on probability
-    additional_variables = []  # Initialize here
-    if initial_probability > 0.35:
-        additional_variables = ['chol', 'fbs', 'restecg', 'thalach', 'thal']
-    else:
-        additional_variables = ['chol', 'fbs', 'restecg']
-
-    return render_template('website.html', user_input={'initial_probability': initial_probability}, additional_variables=additional_variables, model_results=model_results)
-
-
-@app.route('/predict_additional', methods=['POST'])
-def predict_additional():
-    global initial_probability
-    global additional_variables
-    global model_results
-
-    user_values = []
-
-    for var in variables + additional_variables:
-        user_val = request.form.get(var, '')
-        if user_val == '':
-            user_values.append(np.nan)  # Set to NaN for numerical variables
-        else:
-            user_values.append(float(user_val))
-
-    filtered_df = df[variables + additional_variables]
+# Step 3: Printable Ticket
+if 'user_values_additional' in st.session_state:
+    # Update the filtered dataset with additional information
+    filtered_df_additional = df[variables_basic + list(st.session_state.user_values_additional.keys())]
 
     # Recalculate the probability with additional information
-    updated_probability = calculate_probability(user_values, filtered_df, variables + additional_variables)
+    updated_probability_additional = calculate_probability(list(st.session_state.user_values_additional.values()), filtered_df_additional,
+                                                           variables_basic + list(st.session_state.user_values_additional.keys()))
 
     # Check if probability increased by 10% or more
-    if updated_probability - initial_probability >= 0.10:
-        result_message = "HIGH CHANCE OF CVD"
-    elif initial_probability - updated_probability >= 0.15:
-        result_message = "LOW CHANCE OF CVD"
+    if 'initial_probability_basic' in st.session_state and updated_probability_additional - st.session_state.initial_probability_basic >= 0.10:
+        st.write("Recommend admission for further specialist checking. Mark as HIGH CHANCE OF CVD.")
+    elif 'initial_probability_basic' in st.session_state and initial_probability_basic >= 0.35:
+        st.write("Recommend admission for further specialist checking. Mark as HIGH CHANCE OF CVD.")
+    elif 'initial_probability_basic' in st.session_state and st.session_state.initial_probability_basic - updated_probability_additional <= 0.15:
+        st.write("Recommend admission to the ER for further investigation of symptoms. Mark as low probability for CVD.")
     else:
-        result_message = "NO SPECIFIC RECOMMENDATIONS"
+        st.write("No specific recommendations at this time.")
 
-    return render_template('result.html', result_message=result_message, model_results=model_results)
+    # Display model evaluation results for basic information
+    st.write("\nModel Evaluation Results (Basic Information):")
+    for model_name, result in model_results_basic.items():
+        st.write(f"{model_name} Accuracy: {result['accuracy']:.2%}")
+        st.write(f"{model_name} Confusion Matrix:\n{result['confusion_matrix']}\n")
 
-if __name__ == '__main__':
-    app.run(debug=True)
+    # Visualization option report for basic information
+    st.write("Visualization Option Report (Basic Information):")
+    for model_name, result in model_results_basic.items():
+        plt.figure(figsize=(8, 6))
+        sns.heatmap(result['confusion_matrix'], annot=True, fmt='d', cmap='Blues', cbar=False,
+                    xticklabels=['No CVD', 'CVD'], yticklabels=['No CVD', 'CVD'])
+        plt.title(f'Confusion Matrix - {model_name}')
+        st.pyplot(plt)
+
+# Step 4: Printable Ticket
+if 'user_values_additional' in st.session_state:
+    if st.button('Proceed to Printable Ticket'):
+        # Save the initial_probability_basic in the session_state
+        st.session_state.initial_probability_basic = initial_probability_basic
+
+        # Printable ticket for evaluation for basic information
+        st.write("\nPrintable Ticket for Evaluation (Basic Information):")
+        st.write(f"Patient Information:")
+        for var, user_val in st.session_state.user_values_basic.items():
+            st.write(f"{var}: {user_val}")
+
+        st.write("\nEvaluation Results (Basic Information):")
+        st.write(f"Initial Probability of having CVD: {initial_probability_basic:.2%}")
+        st.write(f"Updated Probability of having CVD: {updated_probability_additional:.2%}")
+
+        for model_name, result in model_results_basic.items():
+            st.write(f"\n{model_name} Accuracy: {result['accuracy']:.2%}")
+            st.write(f"{model_name} Confusion Matrix:\n{result['confusion_matrix']}\n")
+
+        st.write("Recommendations (Basic Information):")
+        if 'initial_probability_basic' in st.session_state and updated_probability_additional - st.session_state.initial_probability_basic >= 0.10:
+            st.write("Recommend admission for further specialist checking. Mark as HIGH CHANCE OF CVD.")
+        elif 'initial_probability_basic' in st.session_state and st.session_state.initial_probability_basic - updated_probability_additional >= 0.15:
+            st.write("Recommend admission to the ER for further investigation of symptoms. Mark as low probability for CVD.")
+        else:
+            st.write("No specific recommendations at this time.")
