@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualization Page</title>
+</head>
+<body>
+    <h1>Visualization Page</h1>
+
+    <p>Initial Probability: {{ initial_probability|format("%.2%") }}</p>
+    <p>Updated Probability: {{ updated_probability|format("%.2%") }}</p>
+    <p>Result Message: {{ result_message }}</p>
+
+    {% for model_name, visualization in visualizations.items() %}
+        <h2>{{ model_name }}</h2>
+        <img src="data:image/png;base64,{{ visualization }}" alt="{{ model_name }} Confusion Matrix">
+        <hr>
+    {% endfor %}
+
+    <a href="/">Go back to Home</a>
+</body>
+</html>

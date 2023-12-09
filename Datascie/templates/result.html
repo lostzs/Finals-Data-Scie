@@ -1,3 +1,4 @@
+<!-- result.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -10,38 +11,22 @@
     <h1>Result</h1>
     <p>Result Message: {{ result_message }}</p>
 
-    {% if result_message == "HIGH CHANCE OF CVD" %}
-        <p>Additional Information: Please consider admission for further specialist checking.</p>
-        <h2>Additional Information Recommendations:</h2>
-        <ul>
-            <li>chol</li>
-            <li>fbs</li>
-            <li>restecg</li>
-            <li>thalac</li>
-            <li>thal</li>
-        </ul>
-    {% elif result_message == "LOW CHANCE OF CVD" %}
-        <p>Additional Information: Consider admission to the ER for further investigation of symptoms.</p>
-        <h2>Additional Information Recommendations:</h2>
-        <ul>
-            <li>chol</li>
-            <li>fbs</li>
-            <li>restecg</li>
-        </ul>
-    {% else %}
-        <p>No specific recommendations at this time.</p>
+    {% if additional_information_message %}
+        <p>Additional Information: {{ additional_information_message }}</p>
     {% endif %}
+
+    <!-- Display user input values -->
+    <h2>User Input Values:</h2>
+    {% for var, value in user_input.items() %}
+        <p>{{ var }}: {{ value }}</p>
+    {% endfor %}
 
     <!-- Display model evaluation results -->
     <h2>Model Evaluation Results:</h2>
     {% for model_name, result in model_results.items() %}
         <h3>{{ model_name }}</h3>
         <p>Accuracy: {{ result['accuracy']|round(2)*100 }}%</p>
-        <p>Precision: {{ result['precision']|round(2)*100 }}%</p>
-        <p>Recall: {{ result['recall']|round(2)*100 }}%</p>
-        <p>F1 Score: {{ result['f1_score']|round(2)*100 }}%</p>
         <p>Confusion Matrix: {{ result['confusion_matrix'] }}</p>
-        <!-- Add more model evaluation metrics as needed -->
     {% endfor %}
 
     <!-- Add any additional content or links as needed -->

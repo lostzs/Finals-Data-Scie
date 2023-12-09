@@ -1,3 +1,4 @@
+<!-- website.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -67,7 +68,7 @@
 </head>
 <body>
     <h1>Cardiovascular Disease Prediction</h1>
-    <form method="POST" action="/predict">
+    <form method="POST" action="/predict_additional">
         <label for="age">Age:</label>
         <input type="number" name="age" required>
 
@@ -83,33 +84,19 @@
         <label for="heart_disease">History of Heart Disease (If yes, 1 if no then 0):</label>
         <input type="number" name="heart_disease" required>
 
-        <button type="submit">Predict</button>
+        <button type="submit">Get Probability</button>
     </form>
     
     {% if user_input %}
         <div class="result">
-            <p>Initial Probability: {{ user_input['initial_probability']|format("%.2%") }}</p>
-            <p>Updated Probability: {{ user_input['updated_probability']|format("%.2%") }}</p>
-            <p>Result: {{ user_input['result_message'] }}</p>
-
-            <!-- Integrate recommendation logic based on probability -->
-            {% if user_input['initial_probability'] > 0.35 %}
-                <h2>Recommended Additional Information:</h2>
-                <ul>
-                    <li>chol</li>
-                    <li>fbs</li>
-                    <li>restecg</li>
-                    <li>thalac</li>
-                    <li>thal</li>
-                </ul>
-            {% else %}
-                <h2>Recommended Additional Information:</h2>
-                <ul>
-                    <li>chol</li>
-                    <li>fbs</li>
-                    <li>restecg</li>
-                </ul>
-            {% endif %}
+            <p>Initial Probability: {{ user_input['initial_probability'] * 100 | round(2) }}%</p>
+            <form method="POST" action="/predict_final">
+                {% for var in additional_variables %}
+                    <label for="{{ var }}">{{ var }}:</label>
+                    <input type="number" name="{{ var }}" required>
+                {% endfor %}
+                <button type="submit">Calculate and Display Result</button>
+            </form>
         </div>
     {% endif %}
 </body>
