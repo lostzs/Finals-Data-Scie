@@ -7,6 +7,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC
 from sklearn.metrics import accuracy_score, confusion_matrix, precision_recall_fscore_support, mean_squared_error
+import joblib  
 import seaborn as sns
 
 # Load the dataset
@@ -36,7 +37,7 @@ def calculate_probability(user_values, filtered_df, variables):
 # Function to train and evaluate models
 def evaluate_models(X_train, X_test, y_train, y_test):
     models = {
-        'Logistic Regression': LogisticRegression(max_iter=1000, solver='liblinear'),  # Use 'liblinear' solver
+        'Logistic Regression': LogisticRegression(max_iter=1000, solver='liblinear'),
         'KNN': KNeighborsClassifier(),
         'SVM': SVC(probability=True)
     }
@@ -57,6 +58,9 @@ def evaluate_models(X_train, X_test, y_train, y_test):
             model.fit(X_train, y_train)
             y_pred = model.predict(X_test)
             probabilities = None  # KNN does not have a predict_proba method
+
+        # Save the trained model using joblib
+        joblib.dump(model, f'{name}_model.joblib')
 
         # Calculate evaluation metrics
         accuracy = accuracy_score(y_test, y_pred)

@@ -28,7 +28,7 @@
         h1 {
             text-align: center;
             color: #333;
-            margin-top: 0; /* Add this line to remove default margin */
+            margin-top: 0;
         }
 
         label {
@@ -58,6 +58,11 @@
         button:hover {
             background-color: #0056b3;
         }
+
+        .result {
+            text-align: center;
+            margin-top: 20px;
+        }
     </style>
 </head>
 <body>
@@ -80,8 +85,32 @@
 
         <button type="submit">Predict</button>
     </form>
+    
     {% if user_input %}
-    <p>Probability: {{ '%.2f' % (user_input['probability'] * 100) }}%</p>
+        <div class="result">
+            <p>Initial Probability: {{ user_input['initial_probability']|format("%.2%") }}</p>
+            <p>Updated Probability: {{ user_input['updated_probability']|format("%.2%") }}</p>
+            <p>Result: {{ user_input['result_message'] }}</p>
+
+            <!-- Integrate recommendation logic based on probability -->
+            {% if user_input['initial_probability'] > 0.35 %}
+                <h2>Recommended Additional Information:</h2>
+                <ul>
+                    <li>chol</li>
+                    <li>fbs</li>
+                    <li>restecg</li>
+                    <li>thalac</li>
+                    <li>thal</li>
+                </ul>
+            {% else %}
+                <h2>Recommended Additional Information:</h2>
+                <ul>
+                    <li>chol</li>
+                    <li>fbs</li>
+                    <li>restecg</li>
+                </ul>
+            {% endif %}
+        </div>
     {% endif %}
 </body>
 </html>

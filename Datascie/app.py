@@ -1,30 +1,39 @@
-from flask import Flask, render_template, request, redirect
+# app.py
+import numpy as np
 import pandas as pd
+from flask import Flask, render_template, request
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC
-from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import accuracy_score, confusion_matrix, precision_recall_fscore_support, mean_squared_error
+import joblib
 
 app = Flask(__name__)
 
 # Load the dataset
 df = pd.read_csv('heart_attack.csv')
 
-# Function to preprocess user input
-def preprocess_input(age, gender, trestbps, cp, heart_disease):
-    gender = 0 if gender.upper() == 'M' else 1
-    return pd.DataFrame([[age, gender, trestbps, cp, heart_disease]],
-                        columns=['age', 'gender', 'trestbps', 'cp', 'heart_disease'])
+# Function to calculate the probability of having CVD
+def calculate_probability(user_values, filtered_df, variables):
+    probability = 0.0
 
-# Function to scale input features
-def scale_input(X, scaler):
-    return scaler.transform(X)
+    for var, user_val in zip(variables, user_values):
+        if var == 'gender':
+            threshold_val = filtered_df[var].mode().iloc[0]
+            probability += int(str(user_val) == str(threshold_val))
+        else:
+            threshold_val = filtered_df[var].mean() + filtered_df[var].std()
+            probability += int(float(user_val) > threshold_val) if user_val != '' else 0
+
+    probability /= len(variables)
+    return probability
 
 # Function to train and evaluate models
 def evaluate_models(X_train, X_test, y_train, y_test):
     models = {
-        'Logistic Regression': LogisticRegression(max_iter=1000),
+        'Logistic Regression': LogisticRegression(max_iter=1000, solver='liblinear'),
         'KNN': KNeighborsClassifier(),
         'SVM': SVC(probability=True)
     }
@@ -42,44 +51,56 @@ def evaluate_models(X_train, X_test, y_train, y_test):
         else:
             model.fit(X_train, y_train)
             y_pred = model.predict(X_test)
-            probabilities = None  # KNN does not have a predict_proba method
+            probabilities = None
+
+        joblib.dump(model, f'Linear_Regression_model.joblib')
+
+        accuracy = accuracy_score(y_test, y_pred)
+        cm = confusion_matrix(y_test, y_pred)
+        precision, recall, f1, _ = precision_recall_fscore_support(y_test, y_pred, average='binary')
+        mse = mean_squared_error(y_test, y_pred)
+        rmse = mean_squared_error(y_test, y_pred, squared=False)
 
         results[name] = {
-            'prediction': y_pred.tolist(),
-            'probabilities': probabilities.tolist() if probabilities is not None else None,
+            'accuracy': accuracy,
+            'confusion_matrix': cm,
+            'precision': precision,
+            'recall': recall,
+            'f1_score': f1,
+            'mse': mse,
+            'rmse': rmse,
+            'probabilities': probabilities,
             'model': model
         }
 
     return results
 
-# Add route for additional information
-@app.route('/additional_info', methods=['POST'])
-def additional_info():
-    # Process the form data for additional information
-    chol = float(request.form['chol'])
-    fbs = float(request.form['fbs'])
-    restecg = float(request.form['restecg'])
-    thalac = float(request.form['thalac'])
-    thal = float(request.form['thal'])
+# Display variable options and prompt the user for input
+variables = ['age', 'gender', 'trestbps', 'cp', 'heart_disease']
+user_values = []
 
-    # Further processing or display as needed
+# Web App Routes
+@app.route('/')
+def index():
+    return render_template('website.html', variables=variables)
 
-    return "Additional information processed successfully!"
-
-# Modify the existing predict route
 @app.route('/predict', methods=['POST'])
 def predict():
-    # Process the form data
-    age = float(request.form['age'])
-    gender = request.form['gender']
-    trestbps = float(request.form['trestbps'])
-    cp = float(request.form['cp'])
-    heart_disease = float(request.form['heart_disease'])  # Change here
-    user_input = preprocess_input(age, gender, trestbps, cp, heart_disease)
+    user_values = []
 
-    # Debugging statements
-    print(f"Input values: {user_input}")
-    
+    for var in variables:
+        if var != 'gender':
+            user_val = request.form.get(var, '')
+            if user_val == '':
+                user_values.append(np.nan)  # Set to NaN for numerical variables
+            else:
+                user_values.append(float(user_val))
+        else:
+            user_val = request.form.get(var, '').upper()
+            user_values.append(user_val)
+
+    filtered_df = df[variables]
+
     # Train-test split for model evaluation
     X = df.drop('heart_disease', axis=1)
     y = df['heart_disease']
@@ -88,54 +109,17 @@ def predict():
     # Evaluate models
     model_results = evaluate_models(X_train, X_test, y_train, y_test)
 
-    # Debugging statements
-    print(f"Probabilities: {model_results['Logistic Regression']['probabilities']}")
+    # Calculate the probability of having CVD
+    initial_probability = calculate_probability(user_values, filtered_df, variables)
 
-    # Get the initial probability
-    initial_probability = model_results['Logistic Regression']['probabilities'][0]
-
-    # Debugging statements
-    print(f"Initial Probability: {initial_probability}")
-
-    # Determine which result template to render based on probability
+    # Recommend additional information based on probability
+    additional_info_recommendation = None
     if initial_probability > 0.35:
-        user_input['probability'] = initial_probability * 100  # Convert to percentage
-        return render_template('result_high_cvd.html', model_results=model_results, user_input=user_input)
+        additional_info_recommendation = ['chol', 'fbs', 'restecg', 'thalach', 'thal']
     else:
-        user_input['probability'] = initial_probability * 100  # Convert to percentage
-        return render_template('result_low_cvd.html', model_results=model_results, user_input=user_input)
+        additional_info_recommendation = ['chol', 'fbs', 'restecg']
 
-# Default route for the initial form
-@app.route('/', methods=['GET', 'POST'])
-def index():
-    if request.method == 'POST':
-        # Process the form data
-        age = float(request.form['age'])
-        gender = request.form['gender']
-        trestbps = float(request.form['trestbps'])
-        cp = float(request.form['cp'])
-        has_history = float(request.form['has_history'])
-        user_input = preprocess_input(age, gender, trestbps, cp, has_history)
-
-        # Train-test split for model evaluation
-        X = df.drop('heart_disease', axis=1)
-        y = df['heart_disease']
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
-        # Evaluate models
-        model_results = evaluate_models(X_train, X_test, y_train, y_test)
-
-        # Get the initial probability
-        initial_probability = model_results['Logistic Regression']['probabilities'][0]
-
-        # Determine which result template to render based on probability
-        if initial_probability > 0.35:
-            return render_template('result_high_cvd.html', model_results=model_results, user_input=user_input)
-        else:
-            return render_template('result_low_cvd.html', model_results=model_results, user_input=user_input)
-
-    return render_template('website.html')
+    return render_template('result.html', user_values=user_values, additional_info_recommendation=additional_info_recommendation, model_results=model_results)
 
 if __name__ == '__main__':
     app.run(debug=True)
-    

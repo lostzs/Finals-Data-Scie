@@ -3,60 +3,48 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Results</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-        }
-        h1 {
-            text-align: center;
-            color: #333;
-        }
-        table {
-            width: 80%;
-            margin: 20px auto;
-            border-collapse: collapse;
-        }
-        th, td {
-            border: 1px solid #ddd;
-            padding: 12px;
-            text-align: left;
-        }
-        th {
-            background-color: #f2f2f2;
-        }
-    </style>
+    <title>Result Page</title>
+    <!-- Add any additional styles or scripts here -->
 </head>
 <body>
-    <h1>Cardiovascular Disease Prediction Results</h1>
+    <h1>Result</h1>
+    <p>Result Message: {{ result_message }}</p>
 
-    <h2>User Input</h2>
-    <table>
-        <tr>
-            <th>Variable</th>
-            <th>Value</th>
-        </tr>
-        {% for key, value in user_input.items() %}
-        <tr>
-            <td>{{ key }}</td>
-            <td>{{ value }}</td>
-        </tr>
-        {% endfor %}
-    </table>
+    {% if result_message == "HIGH CHANCE OF CVD" %}
+        <p>Additional Information: Please consider admission for further specialist checking.</p>
+        <h2>Additional Information Recommendations:</h2>
+        <ul>
+            <li>chol</li>
+            <li>fbs</li>
+            <li>restecg</li>
+            <li>thalac</li>
+            <li>thal</li>
+        </ul>
+    {% elif result_message == "LOW CHANCE OF CVD" %}
+        <p>Additional Information: Consider admission to the ER for further investigation of symptoms.</p>
+        <h2>Additional Information Recommendations:</h2>
+        <ul>
+            <li>chol</li>
+            <li>fbs</li>
+            <li>restecg</li>
+        </ul>
+    {% else %}
+        <p>No specific recommendations at this time.</p>
+    {% endif %}
 
-    <h2>Model Results</h2>
-    <table>
-        <tr>
-            <th>Model</th>
-            <th>Accuracy</th>
-        </tr>
-        {% for model, result in model_results.items() %}
-        <tr>
-            <td>{{ model }}</td>
-            <td>{{ result['accuracy'] }}%</td>
-        </tr>
-        {% endfor %}
-    </table>
+    <!-- Display model evaluation results -->
+    <h2>Model Evaluation Results:</h2>
+    {% for model_name, result in model_results.items() %}
+        <h3>{{ model_name }}</h3>
+        <p>Accuracy: {{ result['accuracy']|round(2)*100 }}%</p>
+        <p>Precision: {{ result['precision']|round(2)*100 }}%</p>
+        <p>Recall: {{ result['recall']|round(2)*100 }}%</p>
+        <p>F1 Score: {{ result['f1_score']|round(2)*100 }}%</p>
+        <p>Confusion Matrix: {{ result['confusion_matrix'] }}</p>
+        <!-- Add more model evaluation metrics as needed -->
+    {% endfor %}
+
+    <!-- Add any additional content or links as needed -->
+
 </body>
 </html>
